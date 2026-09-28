@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 [Serializable]
@@ -16,11 +17,19 @@ public class TieredDialogue
 
 public class MangAmboModule : NPCModule
 {
+    [Header("Persistence ID")]
+    [SerializeField] private string moduleSaveID = "MangAmbo_ClaimedTiers";
+
     [Header("Dialogue Content")]
     [SerializeField] private DialogueLine[] defaultDialogue;
     [SerializeField] private List<TieredDialogue> tieredDialogues = new List<TieredDialogue>();
 
-    private List<string> claimedTiers = new List<string>();
+    private HashSet<string> claimedTiers = new HashSet<string>();
+
+    private void Awake()
+    {
+        LoadClaimedTiers();
+    }
 
     public override string GetInteractionPrompt()
     {
@@ -38,31 +47,22 @@ public class MangAmboModule : NPCModule
         DialogueLine[] linesToDisplay = defaultDialogue;
         TieredDialogue activeTierMatch = null;
 
-        // Query the ReactiveOceanManager for the current state
         if (ReactiveOceanManager.Instance != null)
         {
             OceanTier currentTier = ReactiveOceanManager.Instance.GetCurrentTier();
             if (currentTier != null)
             {
-                // Look for dialogue specific to this tier name
-                activeTierMatch = tieredDialogues.Find(t => t.tierName == currentTier.tierName);
+                TieredDialogue match = tieredDialogues.Find(t => t.tierName == currentTier.tierName);
+                bool alreadyClaimed = match != null && claimedTiers.Contains(match.tierName);
 
-                bool alreadyClaimed = activeTierMatch != null && claimedTiers.Contains(activeTierMatch.tierName);
-
-                // Only show tier-specific dialogue if it hasn't been "completed" (rewarded) yet.
-                // Otherwise, fall back to default dialogue so he doesn't repeat the milestone speech.
-                if (activeTierMatch != null && !alreadyClaimed && activeTierMatch.lines != null && activeTierMatch.lines.Length > 0)
+                if (match != null && !alreadyClaimed && match.lines != null && match.lines.Length > 0)
                 {
-                    linesToDisplay = activeTierMatch.lines;
-                }
-                else if (activeTierMatch == null)
-                {
-                    Debug.LogFormat("[MangAmboModule] No specific dialogue found for tier: {0}. Using default.", currentTier.tierName);
+                    linesToDisplay = match.lines;
+                    activeTierMatch = match; // Only set active match if eligible for reward
                 }
             }
         }
 
-        // Show dialogue and attempt to give reward once the conversation ends
         DialogueManager.Instance.ShowDialogue(linesToDisplay, () => 
         {
             if (activeTierMatch != null)
@@ -74,13 +74,11 @@ public class MangAmboModule : NPCModule
 
     private void TryGiveReward(TieredDialogue tieredData)
     {
-        // Don't give the reward if it's already been claimed for this tier
         if (claimedTiers.Contains(tieredData.tierName)) return;
 
         bool hasCoins = tieredData.rewardCoins > 0;
         bool hasItem = tieredData.rewardItem != null;
 
-        // If there's nothing to give, just return
         if (!hasCoins && !hasItem) return;
 
         if (hasCoins)
@@ -94,6 +92,29 @@ public class MangAmboModule : NPCModule
         }
 
         claimedTiers.Add(tieredData.tierName);
-        UIManager.Instance?.ShowMessage($"Mang Ambo gave you a reward for your efforts!");
+        SaveClaimedTiers();
+
+        UIManager.Instance?.ShowMessage("Mang Ambo gave you a reward for your efforts!");
+    }
+
+    private void SaveClaimedTiers()
+    {
+        string data = string.Join(",", claimedTiers);
+        PlayerPrefs.SetString(moduleSaveID, data);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadClaimedTiers()
+    {
+        claimedTiers.Clear();
+        if (PlayerPrefs.HasKey(moduleSaveID))
+        {
+            string data = PlayerPrefs.GetString(moduleSaveID);
+            string[] tiers = data.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string t in tiers)
+            {
+                claimedTiers.Add(t);
+            }
+        }
     }
 }
