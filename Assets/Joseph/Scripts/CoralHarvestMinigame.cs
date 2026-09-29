@@ -10,6 +10,9 @@ public class CoralHarvestMinigame : MonoBehaviour
     public static CoralHarvestMinigame Instance { get; private set; }
 
     [SerializeField] private int seaUrchinCount = 5;
+    [SerializeField] private float minimumDragSpeed = 90f;
+    [SerializeField] private float maximumDragSpeed = 700f;
+    [SerializeField] private float damagePerSecond = 0.8f;
     [SerializeField] private GameObject coralPanel;
     [SerializeField] private RectTransform playArea;
     [SerializeField] private Image coralImage;
@@ -17,6 +20,8 @@ public class CoralHarvestMinigame : MonoBehaviour
     [SerializeField] private TextMeshProUGUI instructionText;
     [SerializeField] private TextMeshProUGUI progressText;
     [SerializeField] private TextMeshProUGUI resultText;
+    [SerializeField] private TextMeshProUGUI damageText;
+    [SerializeField] private Slider tensionMeter;
     [SerializeField] private Button seaUrchinPrefab;
 
     private readonly List<CoralUrchinTarget> activeUrchins = new List<CoralUrchinTarget>();
@@ -61,6 +66,10 @@ public class CoralHarvestMinigame : MonoBehaviour
             Debug.LogError("[CoralHarvestMinigame] Could not load the Sea Urchin icon.");
             return;
         }
+        if (!coral.IsReadyCoral)
+        {
+            return;
+        }
 
         currentCoral = coral;
         removedUrchinCount = 0;
@@ -71,6 +80,7 @@ public class CoralHarvestMinigame : MonoBehaviour
             closeCoroutine = null;
         }
 
+        coralImage.sprite = coral.CoralInfestedSprite;
         coralImage.gameObject.SetActive(true);
         coralRadius = Mathf.Min(coralImage.rectTransform.rect.width, coralImage.rectTransform.rect.height) * 0.5f;
         ClearUrchins();
@@ -86,9 +96,11 @@ public class CoralHarvestMinigame : MonoBehaviour
         }
 
         titleText.text = "CORAL CARE";
-        instructionText.text = "Drag each sea urchin completely off the coral!";
+        instructionText.text = $"Drag urchins off the coral. Keep speed between {minimumDragSpeed:0} and {maximumDragSpeed:0}.";
         resultText.text = string.Empty;
         UpdateProgress();
+        UpdateDamageDisplay();
+        UpdateTensionMeter(0f, false);
         SpawnUrchins(seaUrchin.icon);
     }
 
@@ -101,7 +113,12 @@ public class CoralHarvestMinigame : MonoBehaviour
             return true;
         }
 
-        Debug.LogError("[CoralHarvestMinigame] Coral panel UI is not fully configured.");
+        Debug.LogError(
+            $"[CoralHarvestMinigame] Required UI references missing. Panel: {coralPanel != null}, " +
+            $"Play Area: {playArea != null}, Coral Image: {coralImage != null}, " +
+            $"Title: {titleText != null}, Instructions: {instructionText != null}, " +
+            $"Progress: {progressText != null}, Result: {resultText != null}, " +
+            $"Sea Urchin Prefab: {seaUrchinPrefab != null}");
         return false;
     }
 
@@ -180,19 +197,56 @@ public class CoralHarvestMinigame : MonoBehaviour
         active = false;
         ClearUrchins();
 
-        bool harvested = currentCoral != null && currentCoral.CompleteHarvest(currentCoral.amount);
-        if (harvested)
-        {
-            currentCoral.ConsumeAfterHarvest();
-            resultText.text = "Coral cleared!";
-        }
-        else
-        {
-            resultText.text = "Inventory full. Coral is still ready.";
-        }
-
+        currentCoral.CompleteCoralCare(currentCoral.amount);
+        coralImage.sprite = currentCoral.CoralClearSprite;
+        resultText.text = "Coral cleared! It will become infested again over time.";
         currentCoral = null;
         closeCoroutine = StartCoroutine(ClosePanelAfterDelay());
+    }
+
+    public bool OnUrchinDragSpeed(float speed, float elapsedTime)
+    {
+        if (!active || currentCoral == null) return false;
+
+        bool inSafeRange = speed >= minimumDragSpeed && speed <= maximumDragSpeed;
+        UpdateTensionMeter(speed, inSafeRange);
+        if (!inSafeRange && currentCoral.AddCoralDamage(damagePerSecond * elapsedTime, maximumCoralDamage))
+        {
+            active = false;
+            currentCoral = null;
+            ClearUrchins();
+            resultText.text = "Too much tension! The coral broke.";
+            closeCoroutine = StartCoroutine(ClosePanelAfterDelay());
+            return true;
+        }
+
+        UpdateDamageDisplay();
+        return false;
+    }
+
+    private float maximumCoralDamage => currentCoral != null ? currentCoral.coralDamageToBreak : 1f;
+
+    private void UpdateTensionMeter(float speed, bool inSafeRange)
+    {
+        if (tensionMeter == null) return;
+
+        tensionMeter.minValue = 0f;
+        tensionMeter.maxValue = 1f;
+        tensionMeter.value = Mathf.Clamp01(speed / Mathf.Max(maximumDragSpeed, 1f));
+
+        Image fillImage = tensionMeter.fillRect != null ? tensionMeter.fillRect.GetComponent<Image>() : null;
+        if (fillImage != null)
+        {
+            fillImage.color = inSafeRange ? new Color(0.2f, 0.85f, 0.35f) : new Color(0.95f, 0.3f, 0.2f);
+        }
+    }
+
+    private void UpdateDamageDisplay()
+    {
+        if (damageText == null) return;
+
+        float damage = currentCoral != null ? currentCoral.CoralDamage : 0f;
+        damageText.text = $"Coral damage: {damage:0.0}/{maximumCoralDamage:0.0}";
     }
 
     public void CancelGame()
@@ -203,6 +257,7 @@ public class CoralHarvestMinigame : MonoBehaviour
         currentCoral = null;
         ClearUrchins();
         if (coralImage != null) coralImage.gameObject.SetActive(false);
+        UpdateTensionMeter(0f, false);
         ClosePanel();
     }
 
@@ -210,6 +265,7 @@ public class CoralHarvestMinigame : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(1.2f);
         if (coralImage != null) coralImage.gameObject.SetActive(false);
+        UpdateTensionMeter(0f, false);
         ClosePanel();
         closeCoroutine = null;
     }
