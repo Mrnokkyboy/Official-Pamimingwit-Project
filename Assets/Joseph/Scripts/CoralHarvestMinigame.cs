@@ -12,6 +12,7 @@ public class CoralHarvestMinigame : MonoBehaviour
     [SerializeField] private int seaUrchinCount = 5;
     [SerializeField] private GameObject coralPanel;
     [SerializeField] private RectTransform playArea;
+    [SerializeField] private Image coralImage;
     [SerializeField] private TextMeshProUGUI titleText;
     [SerializeField] private TextMeshProUGUI instructionText;
     [SerializeField] private TextMeshProUGUI progressText;
@@ -20,7 +21,6 @@ public class CoralHarvestMinigame : MonoBehaviour
 
     private readonly List<CoralUrchinTarget> activeUrchins = new List<CoralUrchinTarget>();
     private HarvestableDeployable currentCoral;
-    private Image coralImage;
     private float coralRadius;
     private int removedUrchinCount;
     private bool active;
@@ -62,16 +62,6 @@ public class CoralHarvestMinigame : MonoBehaviour
             return;
         }
 
-        DeployableData coralData = Resources.Load<DeployableData>("Deployables/Coral");
-        HarvestableDeployable coralPrefab = coralData != null && coralData.worldPrefab != null
-            ? coralData.worldPrefab.GetComponent<HarvestableDeployable>()
-            : null;
-        if (coralPrefab == null || coralPrefab.readySprite == null)
-        {
-            Debug.LogError("[CoralHarvestMinigame] Could not load the Coral Farm icon.");
-            return;
-        }
-
         currentCoral = coral;
         removedUrchinCount = 0;
         active = true;
@@ -81,7 +71,8 @@ public class CoralHarvestMinigame : MonoBehaviour
             closeCoroutine = null;
         }
 
-        ShowCoralIcon(coralPrefab.readySprite);
+        coralImage.gameObject.SetActive(true);
+        coralRadius = Mathf.Min(coralImage.rectTransform.rect.width, coralImage.rectTransform.rect.height) * 0.5f;
         ClearUrchins();
         coralImage.transform.SetAsFirstSibling();
 
@@ -103,7 +94,7 @@ public class CoralHarvestMinigame : MonoBehaviour
 
     private bool CanStartGame()
     {
-        if (coralPanel != null && playArea != null && titleText != null &&
+        if (coralPanel != null && playArea != null && coralImage != null && titleText != null &&
             instructionText != null && progressText != null && resultText != null &&
             seaUrchinPrefab != null)
         {
@@ -112,38 +103,6 @@ public class CoralHarvestMinigame : MonoBehaviour
 
         Debug.LogError("[CoralHarvestMinigame] Coral panel UI is not fully configured.");
         return false;
-    }
-
-    private void ShowCoralIcon(Sprite coralSprite)
-    {
-        if (coralImage == null)
-        {
-            GameObject imageObject = new GameObject(
-                "CoralIcon",
-                typeof(RectTransform),
-                typeof(CanvasRenderer),
-                typeof(Image));
-            imageObject.layer = playArea.gameObject.layer;
-            imageObject.transform.SetParent(playArea, false);
-
-            RectTransform imageRect = imageObject.GetComponent<RectTransform>();
-            imageRect.anchorMin = new Vector2(0.5f, 0.5f);
-            imageRect.anchorMax = new Vector2(0.5f, 0.5f);
-            imageRect.pivot = new Vector2(0.5f, 0.5f);
-            imageRect.anchoredPosition = Vector2.zero;
-
-            coralImage = imageObject.GetComponent<Image>();
-            coralImage.preserveAspect = true;
-            coralImage.raycastTarget = false;
-        }
-
-        float iconSize = Mathf.Min(playArea.rect.width, playArea.rect.height) * 0.62f;
-        RectTransform coralRect = coralImage.rectTransform;
-        coralRect.sizeDelta = new Vector2(iconSize, iconSize);
-        coralImage.sprite = coralSprite;
-        coralImage.color = new Color(1f, 0.72f, 0.76f, 1f);
-        coralImage.gameObject.SetActive(true);
-        coralRadius = iconSize * 0.5f;
     }
 
     private void SpawnUrchins(Sprite seaUrchinSprite)

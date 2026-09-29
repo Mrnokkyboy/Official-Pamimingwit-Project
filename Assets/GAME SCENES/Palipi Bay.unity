@@ -34718,7 +34718,6 @@ GameObject:
   - component: {fileID: 1361326164}
   - component: {fileID: 1361326166}
   - component: {fileID: 1361326165}
-  - component: {fileID: 1361326167}
   m_Layer: 0
   m_Name: MInigameManagers
   m_TagString: Untagged
@@ -34773,26 +34772,6 @@ MonoBehaviour:
   - {fileID: -6840271263981590800, guid: 3c7c79be2d4c3ec459c756bc78374ec1, type: 3}
   trashSprites:
   - {fileID: 8527976960843423965, guid: 3c7c79be2d4c3ec459c756bc78374ec1, type: 3}
---- !u!114 &1361326167
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1361326163}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 42b7e223abfe44cb909984e665332a96, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: Assembly-CSharp::CoralHarvestMinigame
-  seaUrchinCount: 5
-  coralPanel: {fileID: 535113355}
-  playArea: {fileID: 1935304217}
-  titleText: {fileID: 929009684}
-  instructionText: {fileID: 1269532306}
-  progressText: {fileID: 725155183}
-  resultText: {fileID: 1613993826}
-  seaUrchinPrefab: {fileID: 6590885867830060418, guid: c3547b68f0dff794bb026d9501bfe230, type: 3}
 --- !u!114 &1361326166
 MonoBehaviour:
   m_ObjectHideFlags: 0
