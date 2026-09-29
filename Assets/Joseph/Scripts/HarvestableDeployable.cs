@@ -39,13 +39,15 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     private bool isInWater;
     private float rippleTimer;
     private bool isSeaweed => deployableType == DeployableType.Seaweed;
+    private bool isCoral => deployableType == DeployableType.Coral;
+    private bool isGrowingFarm => isSeaweed || isCoral;
 
     private void Start()
     {
         sr = GetComponent<SpriteRenderer>();
         if (sr != null)
         {
-            sr.sprite = isSeaweed && seedlingSprite != null ? seedlingSprite : growingSprite;
+            sr.sprite = isGrowingFarm && seedlingSprite != null ? seedlingSprite : growingSprite;
         }
 
         basePosition = transform.position;
@@ -95,7 +97,7 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
                 spawnedIndicator = Instantiate(readyIndicatorPrefab, transform.position + indicatorOffset, Quaternion.identity);
             }
         }
-        else if (isSeaweed && sr != null && growingSprite != null && timer >= readyTime * 0.34f)
+        else if (isGrowingFarm && sr != null && growingSprite != null && timer >= readyTime * 0.34f)
         {
             sr.sprite = growingSprite;
         }
@@ -105,15 +107,29 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     {
         if (!isReady) return;
 
-        if (isSeaweed)
+        if (isGrowingFarm)
         {
-            if (SeaweedHarvestMinigame.Instance != null)
+            if (isCoral)
             {
-                SeaweedHarvestMinigame.Instance.StartGame(this);
+                if (CoralHarvestMinigame.Instance != null)
+                {
+                    CoralHarvestMinigame.Instance.StartGame(this);
+                }
+                else
+                {
+                    Debug.LogError("[HarvestableDeployable] CoralHarvestMinigame instance missing in scene!");
+                }
             }
             else
             {
-                Debug.LogError("[HarvestableDeployable] SeaweedHarvestMinigame instance missing in scene!");
+                if (SeaweedHarvestMinigame.Instance != null)
+                {
+                    SeaweedHarvestMinigame.Instance.StartGame(this);
+                }
+                else
+                {
+                    Debug.LogError("[HarvestableDeployable] SeaweedHarvestMinigame instance missing in scene!");
+                }
             }
             return;
         }
@@ -180,7 +196,7 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
         timer = 0;
         if (sr != null)
         {
-            sr.sprite = isSeaweed && seedlingSprite != null ? seedlingSprite : growingSprite;
+            sr.sprite = isGrowingFarm && seedlingSprite != null ? seedlingSprite : growingSprite;
         }
 
         if (spawnedIndicator != null)
@@ -192,10 +208,16 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
 
     public string GetInteractPrompt()
     {
-        if (isReady) return isSeaweed ? "Harvest Seaweed [E]" : $"Harvest {deployableType} [E]";
-        if (isSeaweed)
+        if (isReady)
         {
-            string stage = timer < readyTime * 0.34f ? "Seedling" : "Growing";
+            if (isCoral) return "Clear Sea Urchins [E]";
+            return isSeaweed ? "Harvest Seaweed [E]" : $"Harvest {deployableType} [E]";
+        }
+        if (isGrowingFarm)
+        {
+            string stage = timer < readyTime * 0.34f
+                ? (isCoral ? "Coral polyp" : "Seedling")
+                : (isCoral ? "Coral growing" : "Growing");
             return $"{stage}... ({Mathf.Ceil(readyTime - timer)}s)";
         }
         return $"Growing... ({Mathf.Ceil(readyTime - timer)}s)";
