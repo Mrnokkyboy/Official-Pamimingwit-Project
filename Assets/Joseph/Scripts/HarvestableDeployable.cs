@@ -18,6 +18,11 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     public Sprite seedlingSprite;
     public Sprite growingSprite;
     public Sprite readySprite;
+    [Header("Coral States")]
+    public Sprite coralClearSprite;
+    public Sprite coralInfestedSprite;
+    [Min(0f)] public float coralReinfestDelay = 30f;
+    [Min(0.01f)] public float coralDamageToBreak = 5f;
     
     [Header("Juice - General")]
     public GameObject readyIndicatorPrefab;
@@ -35,12 +40,20 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     private SpriteRenderer sr;
     private float timer;
     private bool isReady;
+    private bool coralInfested;
+    private float coralClearTimer;
+    private float coralDamage;
     private Vector3 basePosition;
     private bool isInWater;
     private float rippleTimer;
     private bool isSeaweed => deployableType == DeployableType.Seaweed;
     private bool isCoral => deployableType == DeployableType.Coral;
     private bool isGrowingFarm => isSeaweed || isCoral;
+    public bool IsReadyCoral => isCoral && isReady;
+    public bool IsCoralInfested => isCoral && isReady && coralInfested;
+    public float CoralDamage => coralDamage;
+    public Sprite CoralInfestedSprite => coralInfestedSprite != null ? coralInfestedSprite : readySprite;
+    public Sprite CoralClearSprite => coralClearSprite != null ? coralClearSprite : growingSprite;
 
     private void Start()
     {
@@ -78,6 +91,15 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
 
         if (isReady)
         {
+            if (isCoral && !coralInfested)
+            {
+                coralClearTimer += Time.deltaTime;
+                if (coralClearTimer >= coralReinfestDelay)
+                {
+                    SetCoralInfested();
+                }
+            }
+
             if (spawnedIndicator != null)
             {
                 float s = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
@@ -90,9 +112,18 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
         if (timer >= readyTime)
         {
             isReady = true;
-            if (sr != null && readySprite != null) sr.sprite = readySprite;
+            if (isCoral)
+            {
+                coralInfested = false;
+                coralClearTimer = 0f;
+                if (sr != null) sr.sprite = CoralClearSprite;
+            }
+            else if (sr != null && readySprite != null)
+            {
+                sr.sprite = readySprite;
+            }
             
-            if (readyIndicatorPrefab != null && spawnedIndicator == null)
+            if ((!isCoral || coralInfested) && readyIndicatorPrefab != null && spawnedIndicator == null)
             {
                 spawnedIndicator = Instantiate(readyIndicatorPrefab, transform.position + indicatorOffset, Quaternion.identity);
             }
@@ -168,6 +199,57 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
         }
     }
 
+    public bool CompleteCoralCare(int harvestAmount)
+    {
+        if (!IsReadyCoral) return false;
+
+        bool anyAdded = false;
+        for (int i = 0; i < harvestAmount; i++)
+        {
+            ItemData caught = GetHarvestItem(false);
+            if (caught != null && Inventory.Instance != null &&
+                Inventory.Instance.AddItem(caught, 1, FishQuality.Bronze))
+            {
+                anyAdded = true;
+            }
+        }
+
+        coralInfested = false;
+        coralClearTimer = 0f;
+        if (sr != null) sr.sprite = CoralClearSprite;
+        if (spawnedIndicator != null)
+        {
+            Destroy(spawnedIndicator);
+            spawnedIndicator = null;
+        }
+        if (sustainabilityEffect != 0) SustainabilityManager.Instance?.Add(sustainabilityEffect);
+
+        UIManager.Instance?.ShowMessage(anyAdded ? "Coral cared for and fragments harvested!" : "Coral cleared, but your inventory is full!");
+        return anyAdded;
+    }
+
+    private void SetCoralInfested()
+    {
+        coralInfested = true;
+        if (sr != null) sr.sprite = CoralInfestedSprite;
+        if (readyIndicatorPrefab != null && spawnedIndicator == null)
+        {
+            spawnedIndicator = Instantiate(readyIndicatorPrefab, transform.position + indicatorOffset, Quaternion.identity);
+        }
+    }
+
+    public bool AddCoralDamage(float damage, float breakThreshold)
+    {
+        if (!isCoral || damage <= 0f || !isReady) return false;
+
+        coralDamage = Mathf.Min(coralDamage + damage, breakThreshold);
+        if (coralDamage < breakThreshold) return false;
+
+        if (spawnedIndicator != null) Destroy(spawnedIndicator);
+        Destroy(gameObject);
+        return true;
+    }
+
     private ItemData GetHarvestItem(bool useOceanCatch)
     {
         if (harvestPool != null && harvestPool.Length > 0)
@@ -210,7 +292,10 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     {
         if (isReady)
         {
-            if (isCoral) return "Clear Sea Urchins [E]";
+            if (isCoral)
+            {
+                return coralInfested ? "Clear Sea Urchins [E]" : "Care for Coral [E]";
+            }
             return isSeaweed ? "Harvest Seaweed [E]" : $"Harvest {deployableType} [E]";
         }
         if (isGrowingFarm)
