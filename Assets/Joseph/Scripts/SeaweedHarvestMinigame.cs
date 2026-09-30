@@ -21,6 +21,14 @@ public class SeaweedHarvestMinigame : MonoBehaviour
     [Tooltip("Maximum active targets visible on screen simultaneously.")]
     [SerializeField] private int maxConcurrentTargets = 3;
 
+    [Header("Harvest Feedback")]
+    [SerializeField] private float targetFeedbackDuration = 0.22f;
+    [SerializeField] private float targetPopScale = 1.3f;
+    [SerializeField] private float popupDuration = 0.5f;
+    [SerializeField] private float popupRiseDistance = 48f;
+    [SerializeField] private Color harvestFeedbackColor = new Color(0.48f, 1f, 0.73f);
+    [SerializeField] private Color mistakeFeedbackColor = new Color(1f, 0.38f, 0.35f);
+
     [Header("UI References")]
     [SerializeField] private GameObject seaweedPanel;
     [SerializeField] private RectTransform spawnArea;
@@ -38,6 +46,7 @@ public class SeaweedHarvestMinigame : MonoBehaviour
     [SerializeField] private Sprite[] trashSprites;
 
     private readonly List<SeaweedHarvestTarget> activeTargets = new List<SeaweedHarvestTarget>();
+    private readonly List<GameObject> feedbackPopups = new List<GameObject>();
     private HarvestableDeployable currentFarm;
     private float remainingTime;
     private int collectedCount;
@@ -118,6 +127,7 @@ public class SeaweedHarvestMinigame : MonoBehaviour
         remainingTime = gameDuration;
         collectedCount = 0;
         missedCount = 0;
+        ClearFeedbackPopups();
         ClearTargets();
 
         GameObject panel = GetPanel();
@@ -256,13 +266,17 @@ public class SeaweedHarvestMinigame : MonoBehaviour
         activeTargets.Remove(target);
         if (target.IsTrash)
         {
+            StartCoroutine(PlayTargetFeedback(target, false));
             Finish(false, "You picked trash!");
             return;
         }
 
+        RectTransform targetRect = target.transform as RectTransform;
+        if (targetRect != null) StartCoroutine(ShowHarvestPopup(targetRect));
+        StartCoroutine(PlayTargetFeedback(target, true));
+
         collectedCount++;
         UpdateProgress();
-        Destroy(target.gameObject);
 
         if (collectedCount >= seaweedCount)
         {
@@ -292,6 +306,7 @@ public class SeaweedHarvestMinigame : MonoBehaviour
     {
         active = false;
         if (spawnCoroutine != null) StopCoroutine(spawnCoroutine);
+        ClearFeedbackPopups();
         ClearTargets();
 
         GameObject panel = GetPanel();
@@ -361,6 +376,93 @@ public class SeaweedHarvestMinigame : MonoBehaviour
     private void UpdateProgress()
     {
         if (progressText != null) progressText.text = $"Seaweed: {collectedCount}/{seaweedCount}  Missed: {missedCount}";
+    }
+
+    private IEnumerator PlayTargetFeedback(SeaweedHarvestTarget target, bool harvested)
+    {
+        Transform targetTransform = target.transform;
+        Vector3 initialScale = targetTransform.localScale;
+        Image targetImage = target.GetComponentInChildren<Image>();
+        Color initialColor = targetImage != null ? targetImage.color : Color.white;
+        Color feedbackColor = harvested ? harvestFeedbackColor : mistakeFeedbackColor;
+        float duration = Mathf.Max(0.01f, targetFeedbackDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration && targetTransform != null)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float pop = Mathf.Sin(progress * Mathf.PI);
+            targetTransform.localScale = initialScale * (1f + (targetPopScale - 1f) * pop);
+
+            if (targetImage != null)
+            {
+                Color color = Color.Lerp(initialColor, feedbackColor, pop);
+                color.a = initialColor.a * (1f - progress);
+                targetImage.color = color;
+            }
+
+            yield return null;
+        }
+
+        if (targetTransform != null) Destroy(target.gameObject);
+    }
+
+    private IEnumerator ShowHarvestPopup(RectTransform targetRect)
+    {
+        RectTransform popupParent = GetSpawnArea();
+        if (popupParent == null || targetRect == null) yield break;
+
+        GameObject popupObject = new GameObject("HarvestFeedback", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        popupObject.transform.SetParent(popupParent, false);
+
+        RectTransform popupRect = popupObject.GetComponent<RectTransform>();
+        popupRect.anchorMin = new Vector2(0.5f, 0.5f);
+        popupRect.anchorMax = new Vector2(0.5f, 0.5f);
+        popupRect.pivot = new Vector2(0.5f, 0.5f);
+        popupRect.sizeDelta = new Vector2(120f, 56f);
+        popupRect.position = targetRect.position;
+        Vector2 anchoredPosition = popupRect.anchoredPosition;
+
+        TextMeshProUGUI popupText = popupObject.GetComponent<TextMeshProUGUI>();
+        if (progressText != null)
+        {
+            popupText.font = progressText.font;
+            popupText.fontSize = Mathf.Max(24f, progressText.fontSize * 1.4f);
+            popupText.fontStyle = TMPro.FontStyles.Bold;
+        }
+        popupText.text = "+1";
+        popupText.alignment = TextAlignmentOptions.Center;
+        popupText.color = harvestFeedbackColor;
+        popupText.raycastTarget = false;
+        popupText.enableWordWrapping = false;
+        feedbackPopups.Add(popupObject);
+
+        float duration = Mathf.Max(0.01f, popupDuration);
+        float elapsed = 0f;
+        while (elapsed < duration && popupObject != null)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            popupRect.anchoredPosition = anchoredPosition + Vector2.up * (popupRiseDistance * progress);
+            Color color = harvestFeedbackColor;
+            color.a = 1f - progress;
+            popupText.color = color;
+            popupRect.localScale = Vector3.one * Mathf.Lerp(0.85f, 1f, Mathf.Clamp01(progress * 5f));
+            yield return null;
+        }
+
+        feedbackPopups.Remove(popupObject);
+        if (popupObject != null) Destroy(popupObject);
+    }
+
+    private void ClearFeedbackPopups()
+    {
+        foreach (GameObject popup in feedbackPopups)
+        {
+            if (popup != null) Destroy(popup);
+        }
+        feedbackPopups.Clear();
     }
 }
 
