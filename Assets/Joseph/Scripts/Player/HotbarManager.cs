@@ -58,6 +58,8 @@ public class HotbarManager : MonoBehaviour
 
     private void HandleSelectionInput()
     {
+        if (hotbarSize <= 0) return;
+
         // 1. Mouse Scroll Wheel Selection
         float scroll = InputHandler.Instance != null ? InputHandler.Instance.GetHotbarScrollDelta() : 0f;
         if (Mathf.Abs(scroll) > 0.01f)
@@ -70,30 +72,21 @@ public class HotbarManager : MonoBehaviour
             return;
         }
 
-        // 2. Input System Action Lookup (Action names: "Player/Slot1" through "Player/Slot6")
-        if (InputHandler.Instance != null)
+        // Input action names follow the asset ("Player/1" through "Player/5").
+        // Fall back to direct keyboard input for slots without an asset binding.
+        for (int i = 0; i < hotbarSize; i++)
         {
-            for (int i = 0; i < hotbarSize; i++)
+            string actionName = $"Player/{i + 1}";
+            if (InputHandler.Instance != null && InputHandler.Instance.WasActionPressed(actionName))
             {
-                // Action format matching standard InputActionAsset naming
-                string actionName = $"Player/Slot{i + 1}";
-                if (InputHandler.Instance.WasActionPressed(actionName))
-                {
-                    SelectSlot(i);
-                    return;
-                }
+                SelectSlot(i);
+                return;
             }
-        }
-        // Fallback: Direct Keyboard Direct Read if InputHandler is absent or disabled
-        else if (Keyboard.current != null)
-        {
-            for (int i = 0; i < hotbarSize; i++)
+
+            if (Keyboard.current != null && Keyboard.current[Key.Digit1 + i].wasPressedThisFrame)
             {
-                if (Keyboard.current[Key.Digit1 + i].wasPressedThisFrame)
-                {
-                    SelectSlot(i);
-                    return;
-                }
+                SelectSlot(i);
+                return;
             }
         }
     }

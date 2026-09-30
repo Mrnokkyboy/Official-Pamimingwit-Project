@@ -5852,19 +5852,7 @@ MonoBehaviour:
     m_ActionId: 31bb4811-b4c7-4f2e-8d0e-48f3eef8cfc6
     m_ActionName: 'Player/Fishing[/Mouse/leftButton]'
   - m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 3452239422987403753}
-        m_TargetAssemblyTypeName: InputHandler, Assembly-CSharp
-        m_MethodName: OnHotbarScroll
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
     m_ActionId: 668c61d0-1b2d-4d31-a9ef-1d5150d3d0f4
     m_ActionName: 'Player/Scroll[/Mouse/scroll]'
   m_NeverAutoSwitchControlSchemes: 0
