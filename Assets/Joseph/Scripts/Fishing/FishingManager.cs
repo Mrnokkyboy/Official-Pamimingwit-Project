@@ -58,6 +58,17 @@ public class FishingManager : MonoBehaviour
     [SerializeField] private float minBiteWindow = 1.0f;
     [SerializeField] private float maxBiteWindow = 3.0f;
     [SerializeField] private float loseBaitChance = 0.5f;
+
+    [Header("Weather Fishing Effects")]
+    [Tooltip("Multiplies the rod's bite rate. Higher values mean fish bite sooner.")]
+    [SerializeField] private float sunnyBiteRateMultiplier = 0.9f;
+    [SerializeField] private float cloudyBiteRateMultiplier = 1f;
+    [SerializeField] private float rainyBiteRateMultiplier = 1.25f;
+    [Tooltip("Added to the quality roll when successfully landing a fish.")]
+    [SerializeField] private float sunnyQualityLuckBonus = 0.15f;
+    [SerializeField] private float cloudyQualityLuckBonus = 0f;
+    [SerializeField] private float rainyQualityLuckBonus = -0.1f;
+
     private Coroutine biteCoroutine;
     private Coroutine bobberDeployFallbackCoroutine;
 
@@ -512,6 +523,7 @@ public class FishingManager : MonoBehaviour
             catchModifier *= bonus;
         }
 
+        catchModifier *= GetWeatherBiteRateMultiplier();
         float baseWait = UnityEngine.Random.Range(minWaitTime, maxWaitTime) / Mathf.Max(catchModifier, 0.1f);
         yield return new WaitForSeconds(baseWait);
 
@@ -669,7 +681,8 @@ public class FishingManager : MonoBehaviour
                     luck = rod.qualityLuckModifier;
 
                 FishQuality quality = FishQuality.Bronze;
-                float roll = UnityEngine.Random.value + luck + artifactLuck;
+                float weatherLuck = GetWeatherQualityLuckBonus();
+                float roll = UnityEngine.Random.value + luck + artifactLuck + weatherLuck;
 
                 if (roll > 0.95f) quality = FishQuality.Gold;
                 else if (roll > 0.70f) quality = FishQuality.Silver;
@@ -689,6 +702,40 @@ public class FishingManager : MonoBehaviour
         }
 
         Cleanup();
+    }
+
+    private float GetWeatherBiteRateMultiplier()
+    {
+        if (WeatherManager.Instance == null) return 1f;
+
+        switch (WeatherManager.Instance.CurrentWeather)
+        {
+            case WeatherManager.WeatherState.Sunny:
+                return sunnyBiteRateMultiplier;
+            case WeatherManager.WeatherState.Cloudy:
+                return cloudyBiteRateMultiplier;
+            case WeatherManager.WeatherState.Raining:
+                return rainyBiteRateMultiplier;
+            default:
+                return 1f;
+        }
+    }
+
+    private float GetWeatherQualityLuckBonus()
+    {
+        if (WeatherManager.Instance == null) return 0f;
+
+        switch (WeatherManager.Instance.CurrentWeather)
+        {
+            case WeatherManager.WeatherState.Sunny:
+                return sunnyQualityLuckBonus;
+            case WeatherManager.WeatherState.Cloudy:
+                return cloudyQualityLuckBonus;
+            case WeatherManager.WeatherState.Raining:
+                return rainyQualityLuckBonus;
+            default:
+                return 0f;
+        }
     }
 
     private void HandleFishEscape()
