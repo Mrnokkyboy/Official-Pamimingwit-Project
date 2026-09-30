@@ -163,4 +163,5 @@ public class CloudShadowSpawner : MonoBehaviour
         }
         activeClouds.Clear();
     }
+
 }

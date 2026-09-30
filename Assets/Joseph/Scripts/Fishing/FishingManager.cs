@@ -24,6 +24,7 @@ public class FishingManager : MonoBehaviour
     public LayerMask waterLayer;
     [SerializeField] private GameObject bobberPrefab;
     [SerializeField] private Transform player;
+    [SerializeField] private FishShadowPoolSpawner fishShadowPoolSpawner;
 
     [Header("Visuals")]
     [SerializeField] private LineRenderer fishingLine;
@@ -119,6 +120,12 @@ public class FishingManager : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
+        if (fishShadowPoolSpawner == null) fishShadowPoolSpawner = GetComponent<FishShadowPoolSpawner>();
+        if (fishShadowPoolSpawner == null)
+        {
+            Debug.LogError("[FishingManager] Assign a FishShadowPoolSpawner component in the scene.");
+        }
 
         if (fishingLine != null)
         {
@@ -386,20 +393,38 @@ public class FishingManager : MonoBehaviour
         direction = direction == Vector3.zero ? Vector3.right : direction.normalized;
 
         Vector3 origin = player.position;
-        validPosition = origin + direction * Mathf.Clamp(desiredDistance, minCastDistance, maxWaterCastDistance);
-
         float maxDistance = Mathf.Min(maxCastDistance, maxWaterCastDistance);
-        for (float distance = minCastDistance; distance <= maxDistance; distance += 0.25f)
+        float clampedDesiredDistance = Mathf.Clamp(desiredDistance, minCastDistance, maxDistance);
+        const float distanceStep = 0.125f;
+        float searchRange = Mathf.Max(clampedDesiredDistance - minCastDistance, maxDistance - clampedDesiredDistance);
+
+        for (float offset = 0f; offset <= searchRange; offset += distanceStep)
         {
-            Vector3 testPos = origin + direction * distance;
-            if (Physics2D.OverlapCircle(testPos, 0.25f, waterLayer))
+            float forwardDistance = clampedDesiredDistance + offset;
+            if (forwardDistance <= maxDistance)
             {
-                validPosition = testPos;
-                return true;
+                Vector3 testPosition = origin + direction * forwardDistance;
+                if (Physics2D.OverlapCircle(testPosition, 0.25f, waterLayer))
+                {
+                    validPosition = testPosition;
+                    return true;
+                }
+            }
+
+            float backwardDistance = clampedDesiredDistance - offset;
+            if (offset > 0f && backwardDistance >= minCastDistance)
+            {
+                Vector3 testPosition = origin + direction * backwardDistance;
+                if (Physics2D.OverlapCircle(testPosition, 0.25f, waterLayer))
+                {
+                    validPosition = testPosition;
+                    return true;
+                }
             }
         }
 
-        return Physics2D.OverlapCircle(validPosition, 0.25f, waterLayer);
+        validPosition = origin + direction * clampedDesiredDistance;
+        return false;
     }
 
     private void CastRod()
@@ -545,6 +570,15 @@ public class FishingManager : MonoBehaviour
 
     private IEnumerator WaitForBite()
     {
+        if (currentBobber == null ||
+            fishShadowPoolSpawner == null ||
+            !fishShadowPoolSpawner.IsPositionInPool(currentBobber.transform.position))
+        {
+            UIManager.Instance?.ShowMessage("No fish activity there. Cast into a fish shadow on the water.");
+            Cleanup();
+            yield break;
+        }
+
         float catchModifier = 1f;
         float artifactBonus = cachedInventory != null ? cachedInventory.GetTotalArtifactBonus(a => a.catchRateBonus) : 0f;
 
