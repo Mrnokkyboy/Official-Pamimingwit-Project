@@ -30,6 +30,8 @@ public class FishingManager : MonoBehaviour
     [SerializeField] private Transform rodTip;
     [SerializeField] private int lineResolution = 15;
     [SerializeField] private float lineSagAmount = 0.3f;
+    [SerializeField] private float lineFollowSmoothTime = 0.14f;
+    [SerializeField] private float lineSagSmoothTime = 0.2f;
     [SerializeField] private GameObject dynamitePrefab; 
     [SerializeField] private GameObject explosionParticlePrefab;
     [SerializeField] private float shakeDuration = 0.2f;
@@ -86,6 +88,13 @@ public class FishingManager : MonoBehaviour
     private bool isCastPending; 
 
     private FishingBobber currentBobber;
+    private FishingBobber lineBobber;
+    private Vector3 smoothedLineStart;
+    private Vector3 smoothedLineEnd;
+    private Vector3 lineStartVelocity;
+    private Vector3 lineEndVelocity;
+    private float smoothedLineSag;
+    private float lineSagVelocity;
     private ArtifactData pendingArtifact;
     private FishData hookedFish;
     private FishData runtimeArtifactStruggle;
@@ -261,18 +270,42 @@ public class FishingManager : MonoBehaviour
             startPos.z = 0;
             endPos.z = 0;
 
+            if (lineBobber != currentBobber)
+            {
+                lineBobber = currentBobber;
+                smoothedLineStart = startPos;
+                smoothedLineEnd = endPos;
+                lineStartVelocity = Vector3.zero;
+                lineEndVelocity = Vector3.zero;
+                smoothedLineSag = lineSagAmount;
+                lineSagVelocity = 0f;
+            }
+
+            float smoothTime = Mathf.Max(0.01f, lineFollowSmoothTime);
+            smoothedLineStart = Vector3.SmoothDamp(smoothedLineStart, startPos, ref lineStartVelocity, smoothTime);
+            smoothedLineEnd = Vector3.SmoothDamp(smoothedLineEnd, endPos, ref lineEndVelocity, smoothTime);
+
             fishingLine.enabled = true;
-            fishingLine.positionCount = lineResolution;
+            int resolution = Mathf.Max(2, lineResolution);
+            fishingLine.positionCount = resolution;
 
             bool isLineTense = currentBobber.IsFlying || state == FishingState.Biting || state == FishingState.Result;
-            float currentSag = isLineTense ? 0.02f : lineSagAmount;
+            float targetSag = isLineTense ? 0.02f : lineSagAmount;
+            smoothedLineSag = Mathf.SmoothDamp(
+                smoothedLineSag,
+                targetSag,
+                ref lineSagVelocity,
+                Mathf.Max(0.01f, lineSagSmoothTime));
 
-            for (int i = 0; i < lineResolution; i++)
+            for (int i = 0; i < resolution; i++)
             {
-                float t = i / (float)(lineResolution - 1);
+                float t = i / (float)(resolution - 1);
                 Vector3 pos = Vector3.Lerp(startPos, endPos, t);
+                float followThrough = Mathf.Sin(t * Mathf.PI);
+                Vector3 lineLag = Vector3.Lerp(smoothedLineStart - startPos, smoothedLineEnd - endPos, t);
+                pos += lineLag * followThrough;
 
-                float sag = Mathf.Sin(t * Mathf.PI) * currentSag;
+                float sag = followThrough * smoothedLineSag;
                 pos.y -= sag;
 
                 fishingLine.SetPosition(i, pos);
@@ -281,6 +314,10 @@ public class FishingManager : MonoBehaviour
         else
         {
             if (fishingLine.enabled) fishingLine.enabled = false;
+            lineBobber = null;
+            lineStartVelocity = Vector3.zero;
+            lineEndVelocity = Vector3.zero;
+            lineSagVelocity = 0f;
         }
     }
 
