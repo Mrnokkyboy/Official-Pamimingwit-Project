@@ -4686,12 +4686,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ff8d918cad2d3a49becbf7f120081fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlacementManager
-  validColor: {r: 0, g: 1, b: 0, a: 0.5}
-  invalidColor: {r: 1, g: 0, b: 0, a: 0.5}
-  grid: {fileID: 0}
+  validColor: {r: 0.2, g: 1, b: 0.35, a: 0.72}
+  invalidColor: {r: 1, g: 0.2, b: 0.2, a: 0.72}
+  previewSortingLayer: WalkInfront
+  previewSortingOrder: 30
+  grid: {fileID: 268533843}
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 64
+  obstacleCheckRadius: 0.25
 --- !u!1 &241528477
 GameObject:
   m_ObjectHideFlags: 0
