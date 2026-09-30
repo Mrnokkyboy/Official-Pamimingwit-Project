@@ -165,7 +165,10 @@ MonoBehaviour:
   readySprite: {fileID: 6339998685727416878, guid: 3c7c79be2d4c3ec459c756bc78374ec1, type: 3}
   coralClearSprite: {fileID: 21300000, guid: a0b477f3b68f7e24f93e31b2d48638bf, type: 3}
   coralInfestedSprite: {fileID: 21300000, guid: 4a10a48b6d4e31244996400cf045b357, type: 3}
-  coralReinfestDelay: 10
+  coralMinGrowthDays: 2
+  coralMaxGrowthDays: 4
+  coralMinInfestationDays: 1
+  coralMaxInfestationDays: 3
   coralDamageToBreak: 5
   readyIndicatorPrefab: {fileID: 36053578057516784, guid: 0941449a705334944bbd9abdb19a2e08, type: 3}
   indicatorOffset: {x: 0, y: 1.2, z: 0}
