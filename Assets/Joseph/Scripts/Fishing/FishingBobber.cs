@@ -9,8 +9,8 @@ public class FishingBobber : MonoBehaviour
     float floatAmount = 0.1f;
     
     [Header("Flight Settings")]
-    [SerializeField] private float flightSpeed = 5.0f; 
-    [SerializeField] private float flightArcHeight = 2.0f; 
+    [SerializeField] private float flightSpeed = 3.5f;
+    [SerializeField] private float flightArcHeight = 2.0f;
     [SerializeField] private GameObject ripplePrefab;
 
     [Header("Ambient Ripples")]

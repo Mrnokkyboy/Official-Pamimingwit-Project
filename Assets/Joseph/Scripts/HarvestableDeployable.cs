@@ -11,6 +11,8 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     public ItemData[] harvestPool;
     public int amount = 4;
     public float readyTime = 60f;
+    [Min(1)] public int seaweedMinGrowthDays = 2;
+    [Min(1)] public int seaweedMaxGrowthDays = 4;
     [Tooltip("Positive for sustainable farms, negative for illegal cages.")]
     public int sustainabilityEffect = 0;
 
@@ -21,7 +23,10 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     [Header("Coral States")]
     public Sprite coralClearSprite;
     public Sprite coralInfestedSprite;
-    [Min(0f)] public float coralReinfestDelay = 30f;
+    [Min(1)] public int coralMinGrowthDays = 2;
+    [Min(1)] public int coralMaxGrowthDays = 4;
+    [Min(1)] public int coralMinInfestationDays = 1;
+    [Min(1)] public int coralMaxInfestationDays = 3;
     [Min(0.01f)] public float coralDamageToBreak = 5f;
     
     [Header("Juice - General")]
@@ -41,8 +46,12 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     private float timer;
     private bool isReady;
     private bool coralInfested;
-    private float coralClearTimer;
     private float coralDamage;
+    private int seaweedReadyDay;
+    private int seaweedGrowthDays;
+    private int coralReadyDay;
+    private int coralGrowthDays;
+    private int coralInfestationDay;
     private Vector3 basePosition;
     private bool isInWater;
     private float rippleTimer;
@@ -64,6 +73,9 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
         }
 
         basePosition = transform.position;
+
+        if (isSeaweed) SetSeaweedReadyDay();
+        if (isCoral) SetCoralReadyDay();
 
         if (FishingManager.Instance != null)
         {
@@ -91,13 +103,10 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
 
         if (isReady)
         {
-            if (isCoral && !coralInfested)
+            if (isCoral && !coralInfested && GameManager.Instance != null &&
+                GameManager.Instance.currentDay >= coralInfestationDay)
             {
-                coralClearTimer += Time.deltaTime;
-                if (coralClearTimer >= coralReinfestDelay)
-                {
-                    SetCoralInfested();
-                }
+                SetCoralInfested();
             }
 
             if (spawnedIndicator != null)
@@ -108,29 +117,95 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
             return;
         }
 
-        timer += Time.deltaTime;
-        if (timer >= readyTime)
+        if (isSeaweed || isCoral)
         {
-            isReady = true;
-            if (isCoral)
+            int readyDay = isSeaweed ? seaweedReadyDay : coralReadyDay;
+            int growthDays = isSeaweed ? seaweedGrowthDays : coralGrowthDays;
+            if (GameManager.Instance != null && GameManager.Instance.currentDay >= readyDay)
             {
-                coralInfested = false;
-                coralClearTimer = 0f;
-                if (sr != null) sr.sprite = CoralClearSprite;
+                isReady = true;
+                if (isCoral)
+                {
+                    coralInfested = false;
+                    ScheduleCoralInfestation();
+                    if (sr != null) sr.sprite = CoralClearSprite;
+                }
+                else if (sr != null && readySprite != null)
+                {
+                    sr.sprite = readySprite;
+                }
+
+                if (!isCoral) SpawnReadyIndicator();
             }
-            else if (sr != null && readySprite != null)
+            else if (sr != null && growingSprite != null &&
+                GameManager.Instance != null &&
+                GameManager.Instance.currentDay > readyDay - Mathf.Max(1, Mathf.CeilToInt(growthDays * 0.34f)))
             {
-                sr.sprite = readySprite;
-            }
-            
-            if ((!isCoral || coralInfested) && readyIndicatorPrefab != null && spawnedIndicator == null)
-            {
-                spawnedIndicator = Instantiate(readyIndicatorPrefab, transform.position + indicatorOffset, Quaternion.identity);
+                sr.sprite = growingSprite;
             }
         }
-        else if (isGrowingFarm && sr != null && growingSprite != null && timer >= readyTime * 0.34f)
+        else
         {
-            sr.sprite = growingSprite;
+            timer += Time.deltaTime;
+            if (timer >= readyTime)
+            {
+                isReady = true;
+                if (sr != null && readySprite != null)
+                {
+                    sr.sprite = readySprite;
+                }
+
+                SpawnReadyIndicator();
+            }
+        }
+    }
+
+    private static int GetRandomDays(int minimum, int maximum)
+    {
+        int min = Mathf.Max(1, minimum);
+        int max = Mathf.Max(min, maximum);
+        return Random.Range(min, max + 1);
+    }
+
+    private void SetCoralReadyDay()
+    {
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError("[HarvestableDeployable] GameManager instance missing; coral cannot track growth days.");
+            coralReadyDay = int.MaxValue;
+            return;
+        }
+
+        coralGrowthDays = GetRandomDays(coralMinGrowthDays, coralMaxGrowthDays);
+        coralReadyDay = GameManager.Instance.currentDay + coralGrowthDays;
+    }
+
+    private void ScheduleCoralInfestation()
+    {
+        coralInfestationDay = GameManager.Instance.currentDay +
+            GetRandomDays(coralMinInfestationDays, coralMaxInfestationDays);
+    }
+
+    private void SetSeaweedReadyDay()
+    {
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError("[HarvestableDeployable] GameManager instance missing; seaweed cannot track growth days.");
+            seaweedReadyDay = int.MaxValue;
+            return;
+        }
+
+        int minimumDays = Mathf.Max(1, seaweedMinGrowthDays);
+        int maximumDays = Mathf.Max(minimumDays, seaweedMaxGrowthDays);
+        seaweedGrowthDays = Random.Range(minimumDays, maximumDays + 1);
+        seaweedReadyDay = GameManager.Instance.currentDay + seaweedGrowthDays;
+    }
+
+    private void SpawnReadyIndicator()
+    {
+        if (readyIndicatorPrefab != null && spawnedIndicator == null)
+        {
+            spawnedIndicator = Instantiate(readyIndicatorPrefab, transform.position + indicatorOffset, Quaternion.identity);
         }
     }
 
@@ -213,9 +288,8 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
                 anyAdded = true;
             }
         }
-
         coralInfested = false;
-        coralClearTimer = 0f;
+        ScheduleCoralInfestation();
         if (sr != null) sr.sprite = CoralClearSprite;
         if (spawnedIndicator != null)
         {
@@ -276,6 +350,8 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
     {
         isReady = false;
         timer = 0;
+        if (isSeaweed) SetSeaweedReadyDay();
+        if (isCoral) SetCoralReadyDay();
         if (sr != null)
         {
             sr.sprite = isGrowingFarm && seedlingSprite != null ? seedlingSprite : growingSprite;
@@ -294,12 +370,28 @@ public class HarvestableDeployable : MonoBehaviour, IInteractable
         {
             if (isCoral)
             {
-                return coralInfested ? "Clear Sea Urchins [E]" : "Care for Coral [E]";
+                if (coralInfested) return "Clear Sea Urchins [E]";
+                int daysUntilInfested = Mathf.Max(0, coralInfestationDay - GameManager.Instance.currentDay);
+                return $"Care for Coral [E] (infested in {daysUntilInfested} day{(daysUntilInfested == 1 ? "" : "s")})";
             }
             return isSeaweed ? "Harvest Seaweed [E]" : $"Harvest {deployableType} [E]";
         }
         if (isGrowingFarm)
         {
+            if (isSeaweed && GameManager.Instance != null)
+            {
+                int daysRemaining = Mathf.Max(0, seaweedReadyDay - GameManager.Instance.currentDay);
+                string seaweedStage = daysRemaining == seaweedGrowthDays ? "Seedling" : "Growing";
+                return $"{seaweedStage}... ({daysRemaining} day{(daysRemaining == 1 ? "" : "s")})";
+            }
+
+            if (isCoral && GameManager.Instance != null)
+            {
+                int daysRemaining = Mathf.Max(0, coralReadyDay - GameManager.Instance.currentDay);
+                string coralStage = daysRemaining == coralGrowthDays ? "Coral polyp" : "Coral growing";
+                return $"{coralStage}... ({daysRemaining} day{(daysRemaining == 1 ? "" : "s")})";
+            }
+
             string stage = timer < readyTime * 0.34f
                 ? (isCoral ? "Coral polyp" : "Seedling")
                 : (isCoral ? "Coral growing" : "Growing");

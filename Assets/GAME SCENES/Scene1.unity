@@ -405,6 +405,7 @@ GameObject:
   - component: {fileID: 102707889}
   - component: {fileID: 102707890}
   - component: {fileID: 102707891}
+  - component: {fileID: 7345660921734500013}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -508,6 +509,7 @@ MonoBehaviour:
     m_Bits: 16
   bobberPrefab: {fileID: 2034337739387260650, guid: a2b7d444817da3045ad94c4fdd2416b5, type: 3}
   player: {fileID: 1903357169}
+  fishShadowPoolSpawner: {fileID: 7345660921734500013}
   fishingLine: {fileID: 0}
   rodTip: {fileID: 0}
   lineResolution: 15
@@ -524,6 +526,30 @@ MonoBehaviour:
   loseBaitChance: 0.5
   castSFX: {fileID: 0}
   pullSFX: {fileID: 0}
+--- !u!114 &7345660921734500013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 102707881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7d343fac1e84d80bf26ba4b2694f614, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::FishShadowPoolSpawner
+  waterLayer:
+    serializedVersion: 2
+    m_Bits: 16
+  mainCamera: {fileID: 0}
+  poolCount: 4
+  positionAttempts: 120
+  sortingLayerName: WalkInfront
+  sortingOrder: 10
+  poolColor: {r: 0.2, g: 0.95, b: 1, a: 1}
+  poolScaleRange: {x: 1.1, y: 1.65}
+  driftSpeedRange: {x: 0.025, y: 0.07}
+  respawnTimeRange: {x: 8, y: 15}
 --- !u!114 &102707885
 MonoBehaviour:
   m_ObjectHideFlags: 0

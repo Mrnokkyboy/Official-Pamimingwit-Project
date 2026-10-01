@@ -5,34 +5,54 @@ public class PlacementManager : MonoBehaviour
 {
     public static PlacementManager Instance;
 
-    [Header("Settings")]
-    [SerializeField] private Color validColor = new Color(0, 1, 0, 0.5f);
-    [SerializeField] private Color invalidColor = new Color(1, 0, 0, 0.5f);
+    [Header("Preview")]
+    [SerializeField] private Color validColor = new Color(0.2f, 1f, 0.35f, 0.72f);
+    [SerializeField] private Color invalidColor = new Color(1f, 0.2f, 0.2f, 0.72f);
+    [SerializeField] private string previewSortingLayer = "WalkInfront";
+    [SerializeField] private int previewSortingOrder = 30;
 
-    [Header("Grid Settings")]
+    [Header("Placement Range")]
     [SerializeField] private Grid grid;
     [SerializeField] private LayerMask obstacleLayer;
+    [SerializeField] private float obstacleCheckRadius = 0.25f;
 
     private GameObject previewObject;
     private SpriteRenderer previewRenderer;
     private DeployableData currentDeployable;
+    private bool currentPlacementValid;
+    private string currentInvalidReason;
 
-    void Awake()
+    private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
     }
 
-    void Update()
+    private void OnDestroy()
     {
-        // Don't show placement if UI is open or mouse is over a button
+        if (Instance == this) Instance = null;
+    }
+
+    private void Update()
+    {
         if (UIManager.Instance != null && (UIManager.Instance.IsUIOpen() || UIManager.Instance.IsPointerOverUI()))
         {
             CancelPlacement();
             return;
         }
 
-        ItemData held = PlayerController.Instance?.GetHeldItem();
-        if (held is DeployableData deployable)
+        if (GameManager.Instance != null && GameManager.Instance.currentState != GameState.Normal)
+        {
+            CancelPlacement();
+            return;
+        }
+
+        if (PlayerController.Instance != null && PlayerController.Instance.GetHeldItem() is DeployableData deployable)
         {
             currentDeployable = deployable;
             HandlePlacement();
@@ -45,75 +65,115 @@ public class PlacementManager : MonoBehaviour
 
     private void HandlePlacement()
     {
-        Vector3 mousePos = Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
-        mousePos.z = 0;
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null || Mouse.current == null || PlayerController.Instance == null)
+        {
+            CancelPlacement();
+            return;
+        }
 
-        // Snap mouse position to the center of the tilemap cell
+        Vector3 screenPosition = Mouse.current.position.ReadValue();
+        screenPosition.z = Mathf.Abs(mainCamera.transform.position.z);
+        Vector3 worldPosition = mainCamera.ScreenToWorldPoint(screenPosition);
+        worldPosition.z = 0f;
+
         if (grid != null)
         {
-            Vector3Int cellPos = grid.WorldToCell(mousePos);
-            mousePos = grid.GetCellCenterWorld(cellPos);
+            Vector3Int cellPosition = grid.WorldToCell(worldPosition);
+            worldPosition = grid.GetCellCenterWorld(cellPosition);
+            worldPosition.z = 0f;
         }
 
-        Vector3 playerPos = PlayerController.Instance.transform.position;
-        float dist = Vector3.Distance(playerPos, mousePos);
-        
-        bool inRange = dist >= currentDeployable.minDistance && dist <= currentDeployable.maxDistance;
-        bool onWater = false;
-        if (FishingManager.Instance != null)
-        {
-            onWater = Physics2D.OverlapCircle(mousePos, 0.2f, FishingManager.Instance.waterLayer);
-        }
+        float distance = Vector2.Distance(PlayerController.Instance.transform.position, worldPosition);
+        bool inRange = distance >= currentDeployable.minDistance && distance <= currentDeployable.maxDistance;
+        bool onWater = FishingManager.Instance != null &&
+            Physics2D.OverlapCircle(worldPosition, obstacleCheckRadius, FishingManager.Instance.waterLayer) != null;
+        bool isOccupied = Physics2D.OverlapCircle(worldPosition, obstacleCheckRadius, obstacleLayer) != null;
 
-        bool isOccupied = Physics2D.OverlapPoint(mousePos, obstacleLayer);
-        bool isValid = inRange && (!currentDeployable.requireWater || onWater) && !isOccupied;
+        currentPlacementValid = currentDeployable.worldPrefab != null &&
+            inRange &&
+            (!currentDeployable.requireWater || onWater) &&
+            !isOccupied;
+        currentInvalidReason = GetInvalidReason(inRange, onWater, isOccupied);
 
-        // Setup Preview Object
-        if (previewObject == null)
-        {
-            previewObject = new GameObject("PlacementPreview");
-            previewRenderer = previewObject.AddComponent<SpriteRenderer>();
-            previewRenderer.sortingOrder = 10;
-        }
-
+        EnsurePreview();
+        previewObject.transform.position = worldPosition;
         previewRenderer.sprite = currentDeployable.icon;
-        previewObject.transform.position = mousePos;
-        previewRenderer.color = isValid ? validColor : invalidColor;
+        previewRenderer.color = currentPlacementValid ? validColor : invalidColor;
 
-        // Place Item
-        if (isValid && Mouse.current.leftButton.wasPressedThisFrame)
+        if (Mouse.current.leftButton.wasPressedThisFrame)
         {
-            Instantiate(currentDeployable.worldPrefab, mousePos, Quaternion.identity);
-            ConsumeHeldItem();
-            UIManager.Instance?.ShowMessage($"Deployed {currentDeployable.itemName}!");
+            if (currentPlacementValid)
+            {
+                PlaceDeployable(worldPosition);
+            }
+            else
+            {
+                UIManager.Instance?.ShowMessage(currentInvalidReason);
+            }
         }
+    }
+
+    private string GetInvalidReason(bool inRange, bool onWater, bool isOccupied)
+    {
+        if (currentDeployable.worldPrefab == null) return "This deployable has no world prefab assigned.";
+        if (!inRange) return $"Place this between {currentDeployable.minDistance:0.#} and {currentDeployable.maxDistance:0.#} units away.";
+        if (currentDeployable.requireWater && !onWater) return "This deployable must be placed on water.";
+        if (isOccupied) return "That spot is blocked. Try a nearby tile.";
+        return "This spot cannot be used.";
+    }
+
+    private void EnsurePreview()
+    {
+        if (previewObject != null) return;
+
+        previewObject = new GameObject("PlacementPreview");
+        previewRenderer = previewObject.AddComponent<SpriteRenderer>();
+        previewRenderer.sortingLayerName = previewSortingLayer;
+        previewRenderer.sortingOrder = previewSortingOrder;
+    }
+
+    private void PlaceDeployable(Vector3 position)
+    {
+        if (Inventory.Instance == null || HotbarManager.Instance == null)
+        {
+            UIManager.Instance?.ShowMessage("Could not place this item because the inventory is unavailable.");
+            return;
+        }
+
+        int index = HotbarManager.Instance.selectedIndex;
+        if (index < 0 || index >= Inventory.Instance.itemList.Count)
+        {
+            UIManager.Instance?.ShowMessage("Could not place this item because its hotbar slot is invalid.");
+            return;
+        }
+
+        InventoryItem slot = Inventory.Instance.itemList[index];
+        if (slot.item != currentDeployable || slot.amount <= 0)
+        {
+            UIManager.Instance?.ShowMessage("The selected deployable is no longer in that hotbar slot.");
+            return;
+        }
+
+        Instantiate(currentDeployable.worldPrefab, position, Quaternion.identity);
+        slot.amount--;
+        if (slot.amount <= 0)
+        {
+            slot.amount = 0;
+            slot.item = null;
+            slot.quality = FishQuality.None;
+        }
+
+        Inventory.Instance.OnInventoryChanged?.Invoke();
+        UIManager.Instance?.ShowMessage($"Deployed {currentDeployable.itemName}!");
     }
 
     private void CancelPlacement()
     {
         if (previewObject != null) Destroy(previewObject);
+        previewObject = null;
+        previewRenderer = null;
         currentDeployable = null;
-    }
-
-    private void ConsumeHeldItem()
-    {
-        if (HotbarManager.Instance == null || Inventory.Instance == null) return;
-        int index = HotbarManager.Instance.selectedIndex;
-        
-        if (Inventory.Instance.itemList[index].amount <= 1 && PlayerUIManager.Instance != null)
-        {
-            ItemSlotUI slotUI = PlayerUIManager.Instance.hotbarSlots[index];
-            slotUI.AnimatePopOut(() => {
-                Inventory.Instance.itemList[index].amount = 0;
-                Inventory.Instance.itemList[index].item = null;
-                Inventory.Instance.OnInventoryChanged?.Invoke();
-            });
-        }
-        else
-        {
-            Inventory.Instance.itemList[index].amount--;
-            if (Inventory.Instance.itemList[index].amount <= 0) Inventory.Instance.itemList[index].item = null;
-            Inventory.Instance.OnInventoryChanged?.Invoke();
-        }
+        currentPlacementValid = false;
     }
 }

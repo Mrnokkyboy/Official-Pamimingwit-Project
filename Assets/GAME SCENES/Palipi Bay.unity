@@ -4686,12 +4686,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ff8d918cad2d3a49becbf7f120081fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlacementManager
-  validColor: {r: 0, g: 1, b: 0, a: 0.5}
-  invalidColor: {r: 1, g: 0, b: 0, a: 0.5}
-  grid: {fileID: 0}
+  validColor: {r: 0.2, g: 1, b: 0.35, a: 0.72}
+  invalidColor: {r: 1, g: 0.2, b: 0.2, a: 0.72}
+  previewSortingLayer: WalkInfront
+  previewSortingOrder: 30
+  grid: {fileID: 268533843}
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 64
+  obstacleCheckRadius: 0.25
 --- !u!1 &241528477
 GameObject:
   m_ObjectHideFlags: 0
@@ -13126,6 +13129,7 @@ GameObject:
   - component: {fileID: 636273873}
   - component: {fileID: 636273874}
   - component: {fileID: 636273876}
+  - component: {fileID: 7345660921734500012}
   m_Layer: 0
   m_Name: FishingManager
   m_TagString: Untagged
@@ -13166,6 +13170,7 @@ MonoBehaviour:
     m_Bits: 16
   bobberPrefab: {fileID: 2034337739387260650, guid: a2b7d444817da3045ad94c4fdd2416b5, type: 3}
   player: {fileID: 1582750309}
+  fishShadowPoolSpawner: {fileID: 7345660921734500012}
   fishingLine: {fileID: 636273876}
   rodTip: {fileID: 338150436}
   lineResolution: 15
@@ -13240,6 +13245,30 @@ MonoBehaviour:
   rageColor: {r: 0.9, g: 0.5, b: 0.1, a: 1}
   targetShiftIntervalMin: 0.6
   targetShiftIntervalMax: 1.4
+--- !u!114 &7345660921734500012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 636273871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7d343fac1e84d80bf26ba4b2694f614, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::FishShadowPoolSpawner
+  waterLayer:
+    serializedVersion: 2
+    m_Bits: 16
+  mainCamera: {fileID: 0}
+  poolCount: 4
+  positionAttempts: 120
+  sortingLayerName: WalkInfront
+  sortingOrder: 10
+  poolColor: {r: 0.2, g: 0.95, b: 1, a: 1}
+  poolScaleRange: {x: 1.1, y: 1.65}
+  driftSpeedRange: {x: 0.025, y: 0.07}
+  respawnTimeRange: {x: 8, y: 15}
 --- !u!120 &636273876
 LineRenderer:
   serializedVersion: 3
