@@ -1,45 +1,86 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-public class itemDictionary : MonoBehaviour
+public class ItemDictionary : MonoBehaviour
 {
-    public List<ItemData> itemPrefabs;
-    private Dictionary<int, GameObject> _itemDictionary;
+    public static ItemDictionary Instance { get; private set; }
+
+    [Header("Item Database")]
+    [Tooltip("List of all ItemData ScriptableObjects in the game.")]
+    [SerializeField] private List<ItemData> itemDatabase = new List<ItemData>();
+
+    private readonly Dictionary<int, GameObject> prefabDictionary = new Dictionary<int, GameObject>();
+    private readonly Dictionary<int, ItemData> dataDictionary = new Dictionary<int, ItemData>();
 
     private void Awake()
     {
-        _itemDictionary = new Dictionary<int, GameObject>();
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
 
-        foreach (ItemData item in itemPrefabs)
+        Instance = this;
+        InitializeDictionary();
+    }
+
+    private void InitializeDictionary()
+    {
+        prefabDictionary.Clear();
+        dataDictionary.Clear();
+
+        foreach (ItemData item in itemDatabase)
         {
             if (item == null)
-                continue;
-
-            if (item.prefab == null)
             {
-                Debug.LogWarning($"Item '{item.name}' has no prefab assigned.");
+                Debug.LogWarning("[ItemDictionary] Null ItemData entry found in Inspector list.");
                 continue;
             }
 
-            if (_itemDictionary.ContainsKey(item.ID))
+            if (dataDictionary.ContainsKey(item.ID))
             {
-                Debug.LogError($"Duplicate Item ID detected: {item.ID} on '{item.name}'");
+                Debug.LogError($"[ItemDictionary] Duplicate Item ID '{item.ID}' detected on '{item.itemName}'! Skipping registration.");
                 continue;
             }
 
-            _itemDictionary[item.ID] = item.prefab;
+            dataDictionary[item.ID] = item;
+
+            if (item.prefab != null)
+            {
+                prefabDictionary[item.ID] = item.prefab;
+            }
+            else
+            {
+                Debug.LogWarning($"[ItemDictionary] Item '{item.itemName}' (ID: {item.ID}) has no prefab assigned.");
+            }
         }
     }
 
+    /// <summary>
+    /// Retrieves the GameObject prefab associated with a given Item ID.
+    /// </summary>
     public GameObject GetItemPrefab(int itemID)
     {
-        _itemDictionary.TryGetValue(itemID, out GameObject prefab);
-
-        if (prefab == null)
+        if (prefabDictionary.TryGetValue(itemID, out GameObject prefab))
         {
-            Debug.LogWarning($"Item with ID {itemID} not found in Dictionary");
+            return prefab;
         }
 
-        return prefab;
+        Debug.LogWarning($"[ItemDictionary] Prefab for Item ID '{itemID}' not found or unassigned.");
+        return null;
+    }
+
+    /// <summary>
+    /// Retrieves the ItemData ScriptableObject associated with a given Item ID.
+    /// </summary>
+    public ItemData GetItemData(int itemID)
+    {
+        if (dataDictionary.TryGetValue(itemID, out ItemData data))
+        {
+            return data;
+        }
+
+        Debug.LogWarning($"[ItemDictionary] ItemData for Item ID '{itemID}' not found.");
+        return null;
     }
 }
