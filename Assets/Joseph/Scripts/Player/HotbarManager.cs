@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 public class HotbarManager : MonoBehaviour
 {
-    public static HotbarManager Instance;
+    public static HotbarManager Instance { get; private set; }
 
     public int selectedIndex = 0;
     public int hotbarSize = 6;
@@ -12,18 +12,24 @@ public class HotbarManager : MonoBehaviour
     public AudioClip switchSFX;
     private AudioSource audioSource;
 
-    void Awake()
+    private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
     }
 
-    void Update()
+    private void Update()
     {
         if (GameManager.Instance == null) return;
 
-        // Block keyboard/scroll selection whenever any UI panel is open (Shop, Inventory, etc.)
+        // Block keyboard/scroll selection whenever any UI panel is open
         if (UIManager.Instance != null && UIManager.Instance.IsUIOpen()) return;
 
         HandleSelectionInput();
@@ -32,9 +38,19 @@ public class HotbarManager : MonoBehaviour
 
     private void HandleUseInput()
     {
-        if (Keyboard.current == null) return;
+        bool usePressed = false;
 
-        if (Keyboard.current.eKey.wasPressedThisFrame)
+        if (InputHandler.Instance != null)
+        {
+            usePressed = InputHandler.Instance.WasActionPressed("Player/UseItem") || 
+                         InputHandler.Instance.WasActionPressed("Player/Interact");
+        }
+        else if (Keyboard.current != null)
+        {
+            usePressed = Keyboard.current.eKey.wasPressedThisFrame;
+        }
+
+        if (usePressed)
         {
             Inventory.Instance?.TryUseSelectedHotbarConsumable();
         }
@@ -42,6 +58,9 @@ public class HotbarManager : MonoBehaviour
 
     private void HandleSelectionInput()
     {
+        if (hotbarSize <= 0) return;
+
+        // 1. Mouse Scroll Wheel Selection
         float scroll = InputHandler.Instance != null ? InputHandler.Instance.GetHotbarScrollDelta() : 0f;
         if (Mathf.Abs(scroll) > 0.01f)
         {
@@ -50,29 +69,24 @@ public class HotbarManager : MonoBehaviour
             if (newIndex >= hotbarSize) newIndex = 0;
 
             SelectSlot(newIndex);
+            return;
         }
 
-        // Number Key Selection (1-6), plus Input System action fallback
-        if (Keyboard.current != null)
+        // Input action names follow the asset ("Player/1" through "Player/5").
+        // Fall back to direct keyboard input for slots without an asset binding.
+        for (int i = 0; i < hotbarSize; i++)
         {
-            for (int i = 0; i < hotbarSize; i++)
+            string actionName = $"Player/{i + 1}";
+            if (InputHandler.Instance != null && InputHandler.Instance.WasActionPressed(actionName))
             {
-                if (Keyboard.current[Key.Digit1 + i].wasPressedThisFrame)
-                {
-                    SelectSlot(i);
-                }
+                SelectSlot(i);
+                return;
             }
-        }
 
-        if (InputHandler.Instance != null)
-        {
-            for (int i = 0; i < hotbarSize; i++)
+            if (Keyboard.current != null && Keyboard.current[Key.Digit1 + i].wasPressedThisFrame)
             {
-                string actionName = $"Player/{i + 1}";
-                if (InputHandler.Instance.WasActionPressed(actionName))
-                {
-                    SelectSlot(i);
-                }
+                SelectSlot(i);
+                return;
             }
         }
     }

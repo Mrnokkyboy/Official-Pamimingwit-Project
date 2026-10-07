@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 1000000000000000005}
   - component: {fileID: 7000718307974388385}
   m_Layer: 0
-  m_Name: Seaweed Farm
+  m_Name: Coral Farm
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -86,7 +86,7 @@ SpriteRenderer:
   m_SortingOrder: 1
   m_MaskInteraction: 0
   m_Sprite: {fileID: -6946978553588802777, guid: 93a9e15a780172644880e141ac1ef061, type: 3}
-  m_Color: {r: 0.3, g: 0.9, b: 0.45, a: 1}
+  m_Color: {r: 0.95, g: 0.58, b: 0.55, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -153,18 +153,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13d19ffbdcac0e641a68bb2b8afcf93f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HarvestableDeployable
-  deployableType: 3
-  resultItem: {fileID: 11400000, guid: 8df1b5b3b8b348a08d9dbebd0d2c7f42, type: 2}
+  deployableType: 2
+  resultItem: {fileID: 11400000, guid: 39af1e8298e643d3b757d836c8d95f41, type: 2}
   harvestPool:
-  - {fileID: 11400000, guid: 8df1b5b3b8b348a08d9dbebd0d2c7f42, type: 2}
+  - {fileID: 11400000, guid: 39af1e8298e643d3b757d836c8d95f41, type: 2}
   amount: 4
   readyTime: 15
-  seaweedMinGrowthDays: 2
-  seaweedMaxGrowthDays: 4
   sustainabilityEffect: 3
   seedlingSprite: {fileID: 21300000, guid: 9b570091166e51147aed00ea49df3b2e, type: 3}
   growingSprite: {fileID: -5704960430369663482, guid: 3c7c79be2d4c3ec459c756bc78374ec1, type: 3}
   readySprite: {fileID: 6339998685727416878, guid: 3c7c79be2d4c3ec459c756bc78374ec1, type: 3}
+  coralClearSprite: {fileID: 21300000, guid: a0b477f3b68f7e24f93e31b2d48638bf, type: 3}
+  coralInfestedSprite: {fileID: 21300000, guid: 4a10a48b6d4e31244996400cf045b357, type: 3}
+  coralMinGrowthDays: 2
+  coralMaxGrowthDays: 4
+  coralMinInfestationDays: 1
+  coralMaxInfestationDays: 3
+  coralDamageToBreak: 5
   readyIndicatorPrefab: {fileID: 36053578057516784, guid: 0941449a705334944bbd9abdb19a2e08, type: 3}
   indicatorOffset: {x: 0, y: 1.2, z: 0}
   pulseSpeed: 5

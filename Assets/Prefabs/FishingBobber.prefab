@@ -116,8 +116,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e88abfb667aa204989e081189d75e4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FishingBobber
-  flightSpeed: 4
-  flightArcHeight: 1.5
+  flightSpeed: 3.2
+  flightArcHeight: 1.8
   ripplePrefab: {fileID: 688194962809374536, guid: 72274e37cba02974abbca7c77e1404de, type: 3}
   ambientRippleInterval: 1.5
   ambientRippleScale: 0.5

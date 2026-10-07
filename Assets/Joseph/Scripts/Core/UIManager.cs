@@ -25,6 +25,10 @@ public class UIManager : MonoBehaviour
 
     [Header("Day Cycle UI")]
     public TextMeshProUGUI dayHUDText;
+    [SerializeField] private Image weatherIcon;
+    [SerializeField] private Sprite sunnyWeatherIcon;
+    [SerializeField] private Sprite cloudyWeatherIcon;
+    [SerializeField] private Sprite rainingWeatherIcon;
     public CanvasGroup dayTransitionOverlay;
     public TextMeshProUGUI dayTransitionText;
     public TextMeshProUGUI taxTransitionText;
@@ -110,6 +114,11 @@ public class UIManager : MonoBehaviour
 
         RefreshFishIndex();
 
+        if (WeatherManager.Instance != null)
+        {
+            UpdateWeatherIcon(WeatherManager.Instance.CurrentWeather);
+        }
+
         if (cutsceneFadeOverlay != null && (CutsceneManager.Instance == null || !CutsceneManager.Instance.IsCutsceneActive))
         {
             cutsceneFadeOverlay.alpha = 0f;
@@ -124,6 +133,37 @@ public class UIManager : MonoBehaviour
     private void OnDestroy()
     {
         GameEvents.OnItemCaught -= RefreshFishIndex;
+    }
+
+    private void OnEnable()
+    {
+        WeatherManager.OnWeatherChanged += UpdateWeatherIcon;
+    }
+
+    private void OnDisable()
+    {
+        WeatherManager.OnWeatherChanged -= UpdateWeatherIcon;
+    }
+
+    private void UpdateWeatherIcon(WeatherManager.WeatherState weather)
+    {
+        if (weatherIcon == null)
+            return;
+
+        switch (weather)
+        {
+            case WeatherManager.WeatherState.Sunny:
+                weatherIcon.sprite = sunnyWeatherIcon;
+                break;
+            case WeatherManager.WeatherState.Cloudy:
+                weatherIcon.sprite = cloudyWeatherIcon;
+                break;
+            case WeatherManager.WeatherState.Raining:
+                weatherIcon.sprite = rainingWeatherIcon;
+                break;
+        }
+
+        weatherIcon.enabled = weatherIcon.sprite != null;
     }
 
     // ---------------------------

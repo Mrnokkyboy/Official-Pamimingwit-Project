@@ -121,7 +121,6 @@ public class InputHandler : MonoBehaviour
         BindAction("Crafting", OnCrafting);
         BindAction("Cancel", OnCancel);
         BindAction("Rotate", OnRotate);
-        BindAction("Scroll", OnHotbarScroll);
         BindAction("1", OnSlot1);
         BindAction("2", OnSlot2);
         BindAction("3", OnSlot3);
@@ -140,7 +139,6 @@ public class InputHandler : MonoBehaviour
         UnbindAction("Crafting", OnCrafting);
         UnbindAction("Cancel", OnCancel);
         UnbindAction("Rotate", OnRotate);
-        UnbindAction("Scroll", OnHotbarScroll);
         UnbindAction("1", OnSlot1);
         UnbindAction("2", OnSlot2);
         UnbindAction("3", OnSlot3);
@@ -153,7 +151,7 @@ public class InputHandler : MonoBehaviour
         if (playerInput == null || playerInput.actions == null)
             return;
 
-        InputAction action = playerInput.actions.FindAction(actionName, true);
+        InputAction action = playerInput.actions.FindAction(actionName, false);
         if (action == null)
             return;
 
@@ -171,7 +169,7 @@ public class InputHandler : MonoBehaviour
         if (playerInput == null || playerInput.actions == null)
             return;
 
-        InputAction action = playerInput.actions.FindAction(actionName, true);
+        InputAction action = playerInput.actions.FindAction(actionName, false);
         if (action == null)
             return;
 
@@ -196,13 +194,13 @@ public class InputHandler : MonoBehaviour
     {
         if (playerInput != null && playerInput.actions != null)
         {
-            InputAction action = playerInput.actions.FindAction(actionPath, true);
+            InputAction action = playerInput.actions.FindAction(actionPath, false);
             if (action != null)
                 return action;
         }
 
         if (InputSystem.actions != null)
-            return InputSystem.actions.FindAction(actionPath, true);
+            return InputSystem.actions.FindAction(actionPath, false);
 
         return null;
     }
@@ -254,22 +252,6 @@ public class InputHandler : MonoBehaviour
     {
         if (context.started)
             RightClickDown = true;
-    }
-
-    public void OnHotbarScroll(InputAction.CallbackContext context)
-    {
-        if (!context.performed || HotbarManager.Instance == null)
-            return;
-
-        float scroll = context.ReadValue<Vector2>().y;
-        if (Mathf.Abs(scroll) <= 0.01f)
-            return;
-
-        int newIndex = HotbarManager.Instance.selectedIndex - (int)Mathf.Sign(scroll);
-        if (newIndex < 0) newIndex = HotbarManager.Instance.hotbarSize - 1;
-        if (newIndex >= HotbarManager.Instance.hotbarSize) newIndex = 0;
-
-        HotbarManager.Instance.SelectSlot(newIndex);
     }
 
     public void OnSlot1(InputAction.CallbackContext context) { if (context.started || context.performed) SelectSlot(0); }
